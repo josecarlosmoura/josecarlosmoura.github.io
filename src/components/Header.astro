@@ -1,0 +1,62 @@
+---
+import { SITE_TITLE } from '../consts';
+import { getTopicsWithPosts } from '../lib/blog';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const path = Astro.url.pathname.replace(/\/$/, '');
+const topics = await getTopicsWithPosts();
+
+// Até 4 assuntos: links direto no menu. Mais que isso: vira o menu suspenso "Assuntos".
+const useDropdown = topics.length > 4;
+
+const allHref = `${base}/blog`;
+const topicLinks = topics.map((t) => ({ href: `${base}/blog/${t.slug}`, label: t.name, count: t.posts.length }));
+const inBlog = path === allHref || path.startsWith(`${allHref}/`);
+const isActive = (href: string) => path === href || path.startsWith(`${href}/`);
+---
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href={`${base}/`}>{SITE_TITLE}</a>
+    <nav class="nav" aria-label="Principal">
+      {useDropdown ? (
+        <details class="dropdown">
+          <summary aria-current={inBlog ? 'page' : undefined}>Assuntos</summary>
+          <ul>
+            <li>
+              <a href={allHref} aria-current={path === allHref ? 'page' : undefined}>Todos os artigos</a>
+            </li>
+            {topicLinks.map((l) => (
+              <li>
+                <a href={l.href} aria-current={isActive(l.href) ? 'page' : undefined}>
+                  {l.label}
+                  <span class="count">{l.count}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : (
+        <>
+          <a href={allHref} aria-current={path === allHref ? 'page' : undefined}>Artigos</a>
+          {topicLinks.map((l) => (
+            <a href={l.href} aria-current={isActive(l.href) ? 'page' : undefined}>{l.label}</a>
+          ))}
+        </>
+      )}
+      <a href={`${base}/sobre`} aria-current={isActive(`${base}/sobre`) ? 'page' : undefined}>Sobre</a>
+    </nav>
+  </div>
+</header>
+
+<script is:inline>
+  // Fecha o menu "Assuntos" ao clicar fora ou apertar Esc
+  document.addEventListener('click', (e) => {
+    document.querySelectorAll('details.dropdown[open]').forEach((d) => {
+      if (!d.contains(e.target)) d.removeAttribute('open');
+    });
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') document.querySelectorAll('details.dropdown[open]').forEach((d) => d.removeAttribute('open'));
+  });
+</script>

@@ -1,0 +1,25 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import PostCard from '../../../components/PostCard.astro';
+import { getTopicsWithPosts } from '../../../lib/blog';
+
+export async function getStaticPaths() {
+  const topics = await getTopicsWithPosts();
+  return topics.map((topic) => ({ params: { topic: topic.slug }, props: { topic } }));
+}
+
+const { topic } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+
+<BaseLayout title={topic.name} description={topic.description}>
+  <nav class="crumbs" aria-label="Você está em">
+    <a href={`${base}/blog`}>Artigos</a> › <span>{topic.name}</span>
+  </nav>
+  <h1>{topic.name}</h1>
+  <p class="lead-muted">{topic.description}</p>
+
+  <ul class="post-list">
+    {topic.posts.map((post) => <li><PostCard post={post} /></li>)}
+  </ul>
+</BaseLayout>

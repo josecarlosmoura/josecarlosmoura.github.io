@@ -1,0 +1,143 @@
+---
+import { render } from 'astro:content';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import HtmlEmbed from '../../../components/HtmlEmbed.astro';
+import AuthorBox from '../../../components/AuthorBox.astro';
+import { slugify } from '../../../consts';
+import { getPosts, topicOf, type Post } from '../../../lib/blog';
+
+export async function getStaticPaths() {
+  const posts = await getPosts();
+  return posts.map((post) => {
+    const [topic, ...rest] = post.id.split('/');
+    return { params: { topic, post: rest.join('/') }, props: { post } };
+  });
+}
+
+interface Props {
+  post: Post;
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const topic = topicOf(post);
+const { title, description, pubDate, updatedDate, tags, series, cover, embed } = post.data;
+
+const fmt = (d: Date) =>
+  d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'UTC' });
+
+// Outros artigos da mesma série
+let seriesPosts: Post[] = [];
+if (series) {
+  seriesPosts = (await getPosts())
+    .filter((p) => p.data.series === series)
+    .sort(
+      (a, b) =>
+        (a.data.seriesOrder ?? 0) - (b.data.seriesOrder ?? 0) || a.data.pubDate.valueOf() - b.data.pubDate.valueOf(),
+    );
+}
+
+const url = new URL(Astro.url.pathname, Astro.site).href;
+const enc = encodeURIComponent;
+const shareLinks = [
+  { label: 'LinkedIn', href: `https://www.linkedin.com/sharing/share-offsite/?url=${enc(url)}` },
+  { label: 'X / Twitter', href: `https://twitter.com/intent/tweet?url=${enc(url)}&text=${enc(title)}` },
+  { label: 'WhatsApp', href: `https://wa.me/?text=${enc(`${title} ${url}`)}` },
+];
+---
+
+<BaseLayout
+  title={title}
+  description={description}
+  image={cover}
+  type="article"
+  publishedTime={pubDate}
+  modifiedTime={updatedDate}
+  tags={tags}
+>
+  <article>
+    <nav class="crumbs" aria-label="Você está em">
+      <a href={`${base}/blog`}>Artigos</a> › <a href={`${base}/blog/${topic.slug}/`}>{topic.name}</a>
+    </nav>
+
+    <header class="post-header">
+      {series && <span class="series-tag">{series}</span>}
+      <h1>{title}</h1>
+      <p class="lead">{description}</p>
+      <div class="meta">
+        Publicado em {fmt(pubDate)}
+        {updatedDate && <> · Atualizado em {fmt(updatedDate)}</>}
+      </div>
+      {tags.length > 0 && (
+        <div class="tags">
+          {tags.map((t) => <a class="tag" href={`${base}/tags/${slugify(t)}/`}>#{t}</a>)}
+        </div>
+      )}
+    </header>
+
+    {embed && <HtmlEmbed src={embed} title={title} />}
+
+    <div class="prose">
+      <Content />
+    </div>
+
+    {seriesPosts.length > 1 && (
+      <aside class="series-box">
+        <strong>Série: {series}</strong>
+        <ol>
+          {seriesPosts.map((p) => (
+            <li>
+              {p.id === post.id ? <strong>{p.data.title}</strong> : <a href={`${base}/blog/${p.id}/`}>{p.data.title}</a>}
+            </li>
+          ))}
+        </ol>
+      </aside>
+    )}
+
+    <div class="share">
+      <strong>Gostou? Compartilhe com quem está aprendendo:</strong>
+      <div class="btns">
+        {shareLinks.map((s) => <a class="btn" href={s.href} target="_blank" rel="noopener">{s.label}</a>)}
+        <button class="btn" type="button" id="copy-link" data-url={url}>Copiar link</button>
+      </div>
+    </div>
+
+    <AuthorBox />
+  </article>
+
+  <script is:inline>
+    // Botão "Copiar link"
+    const copyBtn = document.getElementById('copy-link');
+    copyBtn?.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(copyBtn.dataset.url);
+        copyBtn.textContent = 'Link copiado ✓';
+        setTimeout(() => (copyBtn.textContent = 'Copiar link'), 2000);
+      } catch {
+        window.prompt('Copie o link:', copyBtn.dataset.url);
+      }
+    });
+
+    // Diagramas Mermaid: carrega a biblioteca só se o post tiver diagramas
+    const blocks = document.querySelectorAll('pre[data-language="mermaid"], pre.language-mermaid, pre > code.language-mermaid');
+    if (blocks.length) {
+      const nodes = [];
+      blocks.forEach((el) => {
+        const pre = el.tagName === 'PRE' ? el : el.parentElement;
+        if (!pre || pre.dataset.done) return;
+        const div = document.createElement('div');
+        div.className = 'mermaid';
+        div.textContent = pre.textContent;
+        pre.dataset.done = '1';
+        pre.replaceWith(div);
+        nodes.push(div);
+      });
+      import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs').then(({ default: mermaid }) => {
+        const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'strict' });
+        mermaid.run({ nodes });
+      });
+    }
+  </script>
+</BaseLayout>

@@ -1,0 +1,78 @@
+---
+import '../styles/global.css';
+import { SITE_TITLE, AUTHOR } from '../consts';
+
+interface Props {
+  title: string;
+  description: string;
+  image?: string;
+  type?: 'website' | 'article';
+  publishedTime?: Date;
+  modifiedTime?: Date;
+  tags?: string[];
+}
+
+const { title, description, image, type = 'website', publishedTime, modifiedTime, tags = [] } = Astro.props;
+
+const canonical = new URL(Astro.url.pathname, Astro.site);
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const ogImage = new URL(`${base}${image ?? '/og-default.png'}`, Astro.site);
+const fullTitle = title.includes(SITE_TITLE) ? title : `${title} | ${SITE_TITLE}`;
+
+const jsonLd =
+  type === 'article'
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'BlogPosting',
+        headline: title,
+        author: {
+          '@type': 'Person',
+          name: AUTHOR.name,
+          image: new URL(`${base}${AUTHOR.photo}`, Astro.site).href,
+        },
+        description,
+        image: ogImage.href,
+        datePublished: publishedTime?.toISOString(),
+        dateModified: (modifiedTime ?? publishedTime)?.toISOString(),
+        mainEntityOfPage: canonical.href,
+        keywords: tags.join(', '),
+      }
+    : {
+        '@context': 'https://schema.org',
+        '@type': 'WebSite',
+        name: SITE_TITLE,
+        url: canonical.href,
+        description,
+      };
+---
+
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" type="image/svg+xml" href={`${base}/favicon.svg`} />
+<link rel="sitemap" href={`${base}/sitemap-index.xml`} />
+<link rel="alternate" type="application/rss+xml" title={SITE_TITLE} href={`${base}/rss.xml`} />
+<link rel="canonical" href={canonical.href} />
+<meta name="generator" content={Astro.generator} />
+
+<title>{fullTitle}</title>
+<meta name="title" content={fullTitle} />
+<meta name="description" content={description} />
+
+<!-- Open Graph (LinkedIn, Facebook, WhatsApp) -->
+<meta property="og:type" content={type} />
+<meta property="og:url" content={canonical.href} />
+<meta property="og:title" content={fullTitle} />
+<meta property="og:description" content={description} />
+<meta property="og:image" content={ogImage.href} />
+<meta property="og:locale" content="pt_BR" />
+<meta property="og:site_name" content={SITE_TITLE} />
+{publishedTime && <meta property="article:published_time" content={publishedTime.toISOString()} />}
+{tags.map((t) => <meta property="article:tag" content={t} />)}
+
+<!-- Twitter / X -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={fullTitle} />
+<meta name="twitter:description" content={description} />
+<meta name="twitter:image" content={ogImage.href} />
+
+<script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />

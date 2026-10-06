@@ -1,0 +1,36 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PostCard from '../../components/PostCard.astro';
+import { slugify } from '../../consts';
+import { getPosts, getTopicsWithPosts } from '../../lib/blog';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const posts = await getPosts();
+const topics = await getTopicsWithPosts();
+const tags = [...new Set(posts.flatMap((p) => p.data.tags))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+---
+
+<BaseLayout
+  title="Artigos"
+  description="Todos os artigos sobre Engenharia de Software, IA Aplicada e carreira: conceitos, esquemas e mini-projetos."
+>
+  <h1>Artigos</h1>
+
+  {topics.length > 0 && (
+    <div class="btns" style="margin-bottom:20px">
+      {topics.map((t) => (
+        <a class="btn" href={`${base}/blog/${t.slug}/`}>{t.name} <span class="meta">({t.posts.length})</span></a>
+      ))}
+    </div>
+  )}
+
+  {tags.length > 0 && (
+    <div class="tags" style="margin-bottom:28px">
+      {tags.map((t) => <a class="tag" href={`${base}/tags/${slugify(t)}/`}>#{t}</a>)}
+    </div>
+  )}
+
+  <ul class="post-list">
+    {posts.map((post) => <li><PostCard post={post} /></li>)}
+  </ul>
+</BaseLayout>

@@ -1,0 +1,549 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="robots" content="noindex"><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>RAG Passo a Passo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=JetBrains+Mono:wght@400;600&family=Public+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: coluna única de leitura (até 1040px). Hero curto, diagrama animado em cartão largo,
+   quatro conceitos em linhas texto | ilustração, e por fim o template do post. */
+:root{
+  --bg:#F2F5F9; --surface:#FFFFFF; --surface-2:#E9EEF5; --ink:#13202F; --muted:#526173;
+  --line:#D3DBE6; --line-strong:#9AA8BA;
+  --neu:#5A6B80; --neu-s:#E4EAF2;
+  --tok:#9A540A; --tok-s:#FBEAD3;
+  --emb:#117489; --emb-s:#D6EEF3;
+  --vdb:#3550C0; --vdb-s:#DDE3FA;
+  --rag:#17794A; --rag-s:#D5EFE1;
+  --chk:#A3326D; --chk-s:#FADCEB;
+  --f-display:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
+  --f-body:'Public Sans','Segoe UI',system-ui,sans-serif;
+  --f-mono:'JetBrains Mono',ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1621; --surface:#152130; --surface-2:#1C2B3D; --ink:#E6EDF5; --muted:#9AA9BB;
+    --line:#2A3A4D; --line-strong:#5B6E85;
+    --neu:#A6B6C9; --neu-s:#233447;
+    --tok:#F2A859; --tok-s:#3A2A15;
+    --emb:#4CC1DA; --emb-s:#12353E;
+    --vdb:#93A6F7; --vdb-s:#1F2850;
+    --rag:#4FCB8A; --rag-s:#123A29;
+    --chk:#F08FBF; --chk-s:#3B1830;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1621; --surface:#152130; --surface-2:#1C2B3D; --ink:#E6EDF5; --muted:#9AA9BB;
+  --line:#2A3A4D; --line-strong:#5B6E85;
+  --neu:#A6B6C9; --neu-s:#233447;
+  --tok:#F2A859; --tok-s:#3A2A15;
+  --emb:#4CC1DA; --emb-s:#12353E;
+  --vdb:#93A6F7; --vdb-s:#1F2850;
+  --rag:#4FCB8A; --rag-s:#123A29;
+    --chk:#F08FBF; --chk-s:#3B1830;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:400 16px/1.6 var(--f-body);padding-inline:clamp(16px,4vw,32px);padding-block:clamp(24px,5vw,56px)}
+.wrap{max-width:1040px;margin-inline:auto;display:flex;flex-direction:column;gap:clamp(32px,6vw,64px)}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;letter-spacing:-.015em;line-height:1.12}
+p{margin:0}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--vdb);outline-offset:2px}
+.k-neu{--c:var(--neu);--c-soft:var(--neu-s)}
+.k-tok{--c:var(--tok);--c-soft:var(--tok-s)}
+.k-emb{--c:var(--emb);--c-soft:var(--emb-s)}
+.k-vdb{--c:var(--vdb);--c-soft:var(--vdb-s)}
+.k-rag{--c:var(--rag);--c-soft:var(--rag-s)}
+.k-chk{--c:var(--chk);--c-soft:var(--chk-s)}
+
+/* hero */
+.hero{display:flex;flex-direction:column;gap:18px;max-width:760px}
+.eyebrow{font:600 .78rem var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.hero h1{font-size:clamp(2rem,5vw,3.2rem);font-weight:700}
+.hero .sub{font-size:1.12rem;color:var(--muted);max-width:60ch}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;border:1.5px solid var(--c);background:var(--c-soft);color:var(--c);font:600 .9rem var(--f-body);text-decoration:none}
+.chip b{font-family:var(--f-mono);font-weight:600}
+.chip:hover{background:var(--surface)}
+
+/* diagram */
+.sec-head{display:flex;flex-direction:column;gap:8px;margin-bottom:18px;max-width:64ch}
+.sec-head h2{font-size:clamp(1.5rem,3.4vw,2.1rem)}
+.sec-head p{color:var(--muted)}
+.diagram{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:clamp(14px,2.5vw,24px);display:flex;flex-direction:column;gap:16px}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{font:600 .9rem var(--f-body);padding:8px 14px;border-radius:8px;border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);cursor:pointer}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.counter{margin-left:auto;font:500 .85rem var(--f-mono);color:var(--muted)}
+.steps{display:flex;flex-wrap:wrap;gap:6px}
+.stepbtn{width:34px;height:34px;border-radius:50%;border:1.5px solid var(--line-strong);background:var(--surface);color:var(--muted);font:600 .85rem var(--f-mono);cursor:pointer;padding:0}
+.stepbtn[aria-current="step"]{background:var(--c);border-color:var(--c);color:var(--surface)}
+.cap{background:var(--c-soft);border-radius:12px;padding:14px 16px;min-height:9.5rem;display:flex;flex-direction:column;gap:6px}
+.cap .badge{font:600 .74rem var(--f-body);letter-spacing:.09em;text-transform:uppercase;color:var(--c)}
+.cap h3{font-size:1.3rem}
+.cap p{max-width:70ch}
+.svgwrap{overflow-x:auto;border-radius:10px}
+#flow{display:block;min-width:760px;width:100%;height:auto}
+#flow text{font-family:var(--f-body)}
+.t1{fill:var(--ink);font-size:15px;font-weight:600}
+.t2{fill:var(--muted);font-size:11.5px}
+.phase{fill:var(--muted);font-size:12px;font-weight:600;letter-spacing:.08em}
+.node rect{fill:var(--surface);stroke:var(--line-strong);stroke-width:1.5;transition:fill .3s,stroke .3s}
+.node.on rect{fill:var(--c-soft);stroke:var(--c);stroke-width:2.5}
+.node.db rect{fill:var(--surface-2)}
+.node.db.on rect{fill:var(--c-soft)}
+.dbbar{fill:var(--vdb);opacity:.4}
+.edge{color:var(--line-strong);transition:opacity .3s}
+.edge path{fill:none;stroke:currentColor;stroke-width:2}
+.edge polygon{fill:currentColor}
+.edge.dash path{stroke-dasharray:6 5}
+.edge.on{color:var(--c)}
+.edge.on path{stroke-width:3}
+#flow.has-active .node:not(.on){opacity:.5}
+#flow.has-active .edge:not(.on){opacity:.35}
+.packet{fill:var(--c)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.84rem;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:11px;height:11px;border-radius:3px;background:var(--c);display:inline-block}
+
+/* concepts */
+.concept{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(20px,4vw,48px);align-items:start;padding-top:clamp(28px,5vw,48px);border-top:1px solid var(--line);scroll-margin-top:16px}
+@media (max-width:820px){.concept{grid-template-columns:minmax(0,1fr)}}
+.ctext{display:flex;flex-direction:column;gap:14px;min-width:0}
+.tag{font:600 .78rem var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:var(--c)}
+.concept h2{font-size:clamp(1.8rem,4vw,2.5rem);font-weight:700}
+.lead{font-size:1.14rem;line-height:1.55}
+dl{margin:0;display:flex;flex-direction:column;gap:12px}
+dl>div{display:flex;flex-direction:column;gap:2px}
+dt{font:600 .74rem var(--f-body);letter-spacing:.09em;text-transform:uppercase;color:var(--c)}
+dd{margin:0;color:var(--muted)}
+dd b{color:var(--ink);font-weight:600}
+.viz{margin:0;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.viz figcaption{font-size:.82rem;color:var(--muted)}
+.viz-label{font:600 .72rem var(--f-body);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.mono{font-family:var(--f-mono)}
+
+/* chunk viz */
+.doc{border:1.5px dashed var(--line-strong);border-radius:10px;padding:10px 12px;background:var(--surface-2);display:flex;flex-direction:column;gap:4px}
+.doc b{font:600 .72rem var(--f-body);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.doc p{font-size:.92rem}
+.cut{display:flex;align-items:center;gap:10px;font:600 .78rem var(--f-mono);color:var(--c);text-align:center}
+.cut::before,.cut::after{content:"";flex:1;border-top:2px dashed var(--c)}
+.chunks{display:flex;flex-direction:column;gap:10px;margin:0;padding:0;list-style:none}
+.chunk{border:1.5px solid var(--c);background:var(--c-soft);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.chunk-top{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:.8rem;color:var(--muted)}
+.chunk-top code{font:600 .8rem var(--f-mono);color:var(--c)}
+.chunk p{font-size:.92rem}
+.chunk mark{background:var(--surface);color:var(--ink);border-bottom:2px solid var(--c);padding:0 3px;border-radius:3px}
+
+/* token viz */
+.sentence{font:500 1.05rem var(--f-body)}
+.tks{display:flex;flex-wrap:wrap;gap:6px}
+.tk{display:inline-flex;flex-direction:column;align-items:center;gap:2px;padding:6px 9px;border-radius:7px;background:var(--tok-s);color:var(--tok);font:600 .95rem var(--f-mono);white-space:pre}
+.tk small{font-weight:400;color:var(--muted);font-size:.7rem}
+.stat{display:flex;gap:18px;flex-wrap:wrap;font-size:.92rem}
+.stat b{font-family:var(--f-mono);font-size:1.3rem;display:block;line-height:1.2}
+
+/* embedding viz */
+.vecline{font:500 .9rem var(--f-mono);background:var(--emb-s);color:var(--emb);padding:8px 12px;border-radius:8px;overflow-x:auto;white-space:nowrap}
+.scatter{width:100%;height:auto;display:block}
+.scatter text{font:400 11.5px var(--f-body);fill:var(--muted)}
+.scatter .q{fill:var(--ink);font-weight:600}
+
+/* vector db viz */
+.qbox{font-size:.92rem;background:var(--surface-2);border-radius:8px;padding:8px 12px}
+.rows{display:flex;flex-direction:column;gap:10px;margin:0;padding:0;list-style:none}
+.row{border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.row.hit{border-color:var(--vdb);background:var(--vdb-s)}
+.row-top{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:.8rem;color:var(--muted)}
+.row-top code{font:600 .8rem var(--f-mono);color:var(--ink)}
+.sent{font-size:.78rem;font-weight:600;color:var(--vdb);margin-left:auto}
+.row .vec{font:400 .76rem var(--f-mono);color:var(--muted);overflow-x:auto;white-space:nowrap}
+.row p{font-size:.92rem}
+.score{display:flex;align-items:center;gap:8px;font:600 .8rem var(--f-mono)}
+.score span.bar{flex:1;height:8px;border-radius:4px;background:var(--surface-2);overflow:hidden}
+.score span.bar i{display:block;height:100%;background:var(--vdb);border-radius:4px}
+.row:not(.hit) .score span.bar i{background:var(--line-strong)}
+
+/* rag viz */
+.prompt{font:400 .84rem/1.6 var(--f-mono);display:flex;flex-direction:column;gap:6px}
+.prompt div{padding:8px 10px;border-radius:8px;background:var(--c-soft);overflow-wrap:anywhere}
+.prompt div b{display:block;font:600 .68rem var(--f-body);letter-spacing:.09em;text-transform:uppercase;color:var(--c);margin-bottom:2px}
+.answer{background:var(--rag-s);border-radius:10px;padding:12px 14px;font-size:.94rem}
+.answer b{display:block;font:600 .72rem var(--f-body);letter-spacing:.09em;text-transform:uppercase;color:var(--rag);margin-bottom:4px}
+.answer em{font-style:normal;font:500 .8rem var(--f-mono);color:var(--muted)}
+
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="hero">
+  <p class="eyebrow">Guia visual · IA generativa</p>
+  <h1>Como uma IA responde usando os seus documentos</h1>
+  <p class="sub">Chunks, tokens, embeddings, banco vetorial e RAG explicados em ordem, com um diagrama animado que mostra como as cinco peças se encaixam.</p>
+  <nav class="chips" aria-label="Seções">
+    <a class="chip k-chk" href="#chunk"><b>1</b> Chunk</a>
+    <a class="chip k-tok" href="#token"><b>2</b> Token</a>
+    <a class="chip k-emb" href="#embeddings"><b>3</b> Embeddings</a>
+    <a class="chip k-vdb" href="#vectordb"><b>4</b> Banco vetorial</a>
+    <a class="chip k-rag" href="#rag"><b>5</b> RAG</a>
+      </nav>
+</header>
+
+<section id="fluxo" aria-labelledby="fluxo-h">
+  <div class="sec-head">
+    <h2 id="fluxo-h">O fluxo completo, passo a passo</h2>
+    <p>Duas fases usam as mesmas peças. Na indexação, seus documentos viram vetores guardados. Na consulta, a pergunta percorre o mesmo caminho e o banco devolve os trechos mais parecidos.</p>
+  </div>
+  <div class="diagram">
+    <div class="controls">
+      <button class="btn" id="prev" type="button">Anterior</button>
+      <button class="btn primary" id="play" type="button">Pausar</button>
+      <button class="btn" id="next" type="button">Próximo</button>
+      <span class="counter" id="counter">Passo 1 de 10</span>
+    </div>
+    <div class="steps" id="steps" role="group" aria-label="Escolher passo"></div>
+    <div class="cap k-neu" id="cap">
+      <span class="badge" id="badge"></span>
+      <h3 id="cap-title"></h3>
+      <p id="cap-text"></p>
+    </div>
+    <div class="svgwrap">
+      <svg id="flow" viewBox="0 0 860 430" role="img" aria-label="Diagrama do fluxo de RAG: documentos viram chunks, tokens e embeddings e são guardados no banco vetorial; a pergunta segue o mesmo caminho, o banco devolve os trechos mais próximos e o LLM responde.">
+        <text class="phase" x="20" y="34">INDEXAÇÃO · ANTES, UMA VEZ</text>
+        <text class="phase" x="20" y="226">CONSULTA · A CADA PERGUNTA</text>
+
+        <g id="edges">
+          <g class="edge k-chk" id="e1"><path d="M140 100 H164"/></g>
+          <g class="edge k-tok" id="e2"><path d="M284 100 H308"/></g>
+          <g class="edge k-emb" id="e3"><path d="M428 100 H452"/></g>
+          <g class="edge k-vdb" id="e4"><path d="M572 100 H596"/></g>
+          <g class="edge k-tok" id="e5"><path d="M140 280 H308"/></g>
+          <g class="edge k-emb" id="e6"><path d="M428 280 H452"/></g>
+          <g class="edge k-vdb" id="e7"><path d="M572 280 H596"/></g>
+          <g class="edge k-rag" id="e8"><path d="M716 280 H740"/></g>
+          <g class="edge k-rag dash" id="e9"><path d="M80 320 V400 H800 V320"/></g>
+        </g>
+        <text class="t2" x="440" y="390" text-anchor="middle">a pergunta original vai junto no prompt</text>
+
+        <g class="node k-neu" id="n-doc"><rect x="20" y="60" width="120" height="80" rx="10"/>
+          <text class="t1" x="80" y="94" text-anchor="middle">Documentos</text>
+          <text class="t2" x="80" y="114" text-anchor="middle">PDF, site, FAQ</text></g>
+        <g class="node k-chk" id="n-chunk"><rect x="164" y="60" width="120" height="80" rx="10"/>
+          <text class="t1" x="224" y="94" text-anchor="middle">Chunks</text>
+          <text class="t2" x="224" y="114" text-anchor="middle">pedaços de texto</text></g>
+        <g class="node k-tok" id="n-tok1"><rect x="308" y="60" width="120" height="80" rx="10"/>
+          <text class="t1" x="368" y="94" text-anchor="middle">Tokens</text>
+          <text class="t2" x="368" y="114" text-anchor="middle">texto → números</text></g>
+        <g class="node k-emb" id="n-emb1"><rect x="452" y="60" width="120" height="80" rx="10"/>
+          <text class="t1" x="512" y="94" text-anchor="middle">Embeddings</text>
+          <text class="t2" x="512" y="114" text-anchor="middle">chunk → vetor</text></g>
+
+        <g class="node db k-vdb" id="n-db"><rect x="596" y="50" width="120" height="290" rx="12"/>
+          <text class="t1" x="656" y="128" text-anchor="middle">Banco</text>
+          <text class="t1" x="656" y="147" text-anchor="middle">vetorial</text>
+          <text class="t2" x="656" y="172" text-anchor="middle">vetores + texto</text>
+          <text class="t2" x="656" y="187" text-anchor="middle">+ metadados</text>
+          <rect class="dbbar" x="616" y="205" width="80" height="6" rx="3"/>
+          <rect class="dbbar" x="616" y="217" width="58" height="6" rx="3"/>
+          <rect class="dbbar" x="616" y="229" width="70" height="6" rx="3"/>
+          <text class="t2" x="656" y="300" text-anchor="middle">índice ANN</text>
+          <text class="t2" x="656" y="315" text-anchor="middle">(ex.: HNSW)</text></g>
+
+        <g class="node k-neu" id="n-q"><rect x="20" y="240" width="120" height="80" rx="10"/>
+          <text class="t1" x="80" y="274" text-anchor="middle">Pergunta</text>
+          <text class="t2" x="80" y="294" text-anchor="middle">do usuário</text></g>
+        <g class="node k-tok" id="n-tok2"><rect x="308" y="240" width="120" height="80" rx="10"/>
+          <text class="t1" x="368" y="274" text-anchor="middle">Tokens</text>
+          <text class="t2" x="368" y="294" text-anchor="middle">mesmo tokenizador</text></g>
+        <g class="node k-emb" id="n-emb2"><rect x="452" y="240" width="120" height="80" rx="10"/>
+          <text class="t1" x="512" y="274" text-anchor="middle">Embedding</text>
+          <text class="t2" x="512" y="294" text-anchor="middle">pergunta → vetor</text></g>
+        <g class="node k-rag" id="n-llm"><rect x="740" y="240" width="120" height="80" rx="10"/>
+          <text class="t1" x="800" y="272" text-anchor="middle">LLM</text>
+          <text class="t2" x="800" y="292" text-anchor="middle">gera a resposta</text>
+          <text class="t2" x="800" y="307" text-anchor="middle">com o contexto</text></g>
+
+        <g id="packets"></g>
+      </svg>
+    </div>
+    <div class="legend" aria-label="Legenda de cores">
+      <span class="k-chk"><i></i>Chunk</span>
+      <span class="k-tok"><i></i>Token</span>
+      <span class="k-emb"><i></i>Embedding</span>
+      <span class="k-vdb"><i></i>Banco vetorial</span>
+      <span class="k-rag"><i></i>RAG (prompt e resposta)</span>
+      <span class="k-neu"><i></i>Entradas (documentos e pergunta)</span>
+    </div>
+  </div>
+</section>
+
+<section class="concept k-chk" id="chunk">
+  <div class="ctext">
+    <p class="tag">Conceito 1 de 5</p>
+    <h2>Chunk</h2>
+    <p class="lead">Chunk é um pedaço de um documento, cortado em um tamanho que o sistema consegue buscar e entregar ao modelo de uma vez.</p>
+    <dl>
+      <div><dt>Analogia</dt><dd>Fichas de estudo. Em vez de levar o livro inteiro para a prova, você recorta o conteúdo em fichas, uma ideia por ficha, e consulta só as que respondem à pergunta.</dd></div>
+      <div><dt>Por que importa</dt><dd>Cada chunk vira <b>um embedding</b> e é a unidade que a busca devolve. Chunk grande demais mistura assuntos e dilui o sentido; pequeno demais perde o contexto. E só cabem alguns chunks na janela de contexto do LLM.</dd></div>
+      <div><dt>Como dividir</dt><dd>Por tamanho fixo (em tokens ou caracteres), por parágrafo ou título, ou pela estrutura do arquivo (Markdown, HTML, código). Uma pequena <b>sobreposição</b> entre chunks vizinhos evita cortar uma ideia ao meio.</dd></div>
+      <div><dt>Cuidado</dt><dd>Não existe tamanho único certo. Comece com algumas centenas de tokens por chunk, teste com perguntas reais e ajuste. Guarde em cada chunk a fonte e a página, para poder citar de onde veio a resposta.</dd></div>
+    </dl>
+  </div>
+  <figure class="viz">
+    <span class="viz-label">Um documento vira chunks</span>
+    <div class="doc">
+      <b>politica.pdf · p.2</b>
+      <p>Reembolsos são aceitos em até 7 dias após a compra. O pedido deve ser feito em Conta &gt; Pagamentos. O valor volta ao mesmo meio de pagamento em até 10 dias úteis. Assinaturas anuais recebem reembolso proporcional ao período não usado.</p>
+    </div>
+    <div class="cut" aria-hidden="true">dividir · 2 frases por chunk · 1 de sobreposição</div>
+    <ol class="chunks">
+      <li class="chunk">
+        <div class="chunk-top"><code>c-031</code><span>politica.pdf · p.2</span></div>
+        <p>Reembolsos são aceitos em até 7 dias após a compra. <mark>O pedido deve ser feito em Conta &gt; Pagamentos.</mark></p>
+      </li>
+      <li class="chunk">
+        <div class="chunk-top"><code>c-032</code><span>politica.pdf · p.2</span></div>
+        <p><mark>O pedido deve ser feito em Conta &gt; Pagamentos.</mark> <mark>O valor volta ao mesmo meio de pagamento em até 10 dias úteis.</mark></p>
+      </li>
+      <li class="chunk">
+        <div class="chunk-top"><code>c-033</code><span>politica.pdf · p.2</span></div>
+        <p><mark>O valor volta ao mesmo meio de pagamento em até 10 dias úteis.</mark> Assinaturas anuais recebem reembolso proporcional ao período não usado.</p>
+      </li>
+    </ol>
+    <div class="stat"><div><b>4</b>frases</div><div><b>3</b>chunks</div></div>
+    <figcaption>Texto, regras e IDs ilustrativos. O trecho sublinhado é a sobreposição: ele se repete no chunk vizinho, e assim nenhuma ideia fica cortada ao meio.</figcaption>
+  </figure>
+</section>
+
+<section class="concept k-tok" id="token">
+  <div class="ctext">
+    <p class="tag">Conceito 2 de 5</p>
+    <h2>Token</h2>
+    <p class="lead">Token é o pedaço de texto que o modelo realmente lê: uma palavra inteira, parte dela ou um sinal de pontuação.</p>
+    <dl>
+      <div><dt>Analogia</dt><dd>Peças de LEGO. O modelo não enxerga a frase pronta, só as peças em que ela foi desmontada.</dd></div>
+      <div><dt>Por que importa</dt><dd>A janela de contexto e o custo de uso são contados em <b>tokens</b>, não em palavras. Em português, uma palavra costuma render mais tokens do que em inglês.</dd></div>
+      <div><dt>Cuidado</dt><dd>Cada modelo tem o seu tokenizador. O mesmo texto vira quantidades diferentes de tokens em modelos diferentes.</dd></div>
+    </dl>
+  </div>
+  <figure class="viz">
+    <span class="viz-label">Exemplo de tokenização</span>
+    <p class="sentence">Embeddings transformam texto em números</p>
+    <div class="tks" aria-label="Frase dividida em oito tokens">
+      <span class="tk">Em<small>8421</small></span>
+      <span class="tk">bed<small>19</small></span>
+      <span class="tk">dings<small>604</small></span>
+      <span class="tk"> transform<small>11873</small></span>
+      <span class="tk">am<small>302</small></span>
+      <span class="tk"> texto<small>2917</small></span>
+      <span class="tk"> em<small>77</small></span>
+      <span class="tk"> números<small>5530</small></span>
+    </div>
+    <div class="stat"><div><b>5</b>palavras</div><div><b>8</b>tokens</div></div>
+    <figcaption>Cortes e IDs ilustrativos. Em um modelo real, os números vêm do vocabulário do tokenizador.</figcaption>
+  </figure>
+</section>
+
+<section class="concept k-emb" id="embeddings">
+  <div class="ctext">
+    <p class="tag">Conceito 3 de 5</p>
+    <h2>Embeddings</h2>
+    <p class="lead">Embedding é uma lista de números (um vetor) que representa o significado de um texto. Textos com sentido parecido ficam com vetores próximos.</p>
+    <dl>
+      <div><dt>Analogia</dt><dd>Um mapa de significados. Cada texto ganha coordenadas: “gato” fica perto de “cachorro” e longe de “caminhão”. A diferença é que o mapa real tem centenas de dimensões, não duas.</dd></div>
+      <div><dt>Por que importa</dt><dd>Permite buscar por <b>sentido</b>, não por palavra exata. A pergunta “como cancelo minha assinatura?” encontra o trecho que fala em “encerrar o plano”.</dd></div>
+      <div><dt>Cuidado</dt><dd>Use o <b>mesmo modelo</b> de embeddings para indexar e para consultar. Vetores de modelos diferentes não são comparáveis. A proximidade costuma ser medida por similaridade de cosseno.</dd></div>
+    </dl>
+  </div>
+  <figure class="viz">
+    <span class="viz-label">Um texto vira um vetor</span>
+    <div class="vecline">[ 0.12, −0.48, 0.91, 0.03, … ] · 1536 números</div>
+    <svg class="scatter" viewBox="0 0 340 215" role="img" aria-label="Mapa em duas dimensões: animais agrupados, veículos agrupados, frutas agrupadas, e a consulta “filhote de gato” caindo perto dos animais.">
+      <circle cx="88" cy="88" r="50" fill="none" stroke="var(--emb)" stroke-width="1.5" stroke-dasharray="5 4"/>
+      <g fill="var(--emb)">
+        <circle cx="60" cy="52" r="5"/><circle cx="115" cy="78" r="5"/><circle cx="50" cy="108" r="5"/>
+        <circle cx="230" cy="150" r="5" opacity=".55"/><circle cx="270" cy="175" r="5" opacity=".55"/><circle cx="215" cy="195" r="5" opacity=".55"/>
+        <circle cx="240" cy="40" r="5" opacity=".55"/><circle cx="290" cy="70" r="5" opacity=".55"/>
+      </g>
+      <text x="68" y="56">gato</text><text x="123" y="82">cachorro</text><text x="58" y="112">leão</text>
+      <text x="238" y="154">carro</text><text x="278" y="179">caminhão</text><text x="223" y="199">moto</text>
+      <text x="248" y="44">maçã</text><text x="298" y="74">banana</text>
+      <path d="M88 80 l2.4 5 5.4.7 -4 3.8 1 5.4 -4.8-2.7 -4.8 2.7 1-5.4 -4-3.8 5.4-.7z" fill="var(--ink)"/>
+      <text class="q" x="88" y="158" text-anchor="middle">consulta: “filhote de gato”</text>
+    </svg>
+    <figcaption>Projeção em 2D, ilustrativa. Os vizinhos dentro do círculo são o que a busca devolveria.</figcaption>
+  </figure>
+</section>
+
+<section class="concept k-vdb" id="vectordb">
+  <div class="ctext">
+    <p class="tag">Conceito 4 de 5</p>
+    <h2>Banco vetorial</h2>
+    <p class="lead">Banco vetorial é um banco de dados feito para guardar vetores e encontrar rápido os mais parecidos com o vetor de uma busca.</p>
+    <dl>
+      <div><dt>Analogia</dt><dd>Uma biblioteca organizada por assunto, não por ordem alfabética. Você descreve o que procura e o bibliotecário aponta as prateleiras vizinhas.</dd></div>
+      <div><dt>Por que importa</dt><dd>Comparar a pergunta com milhões de vetores, um por um, seria lento. Índices de vizinhos mais próximos aproximados (<b>ANN</b>), como o HNSW, trocam um pouco de precisão por muita velocidade.</dd></div>
+      <div><dt>Cuidado</dt><dd>Guarde também o texto original e metadados (fonte, página, data, permissão). Filtros por metadados e busca híbrida, que combina vetores com palavras-chave, costumam melhorar os resultados.</dd></div>
+      <div><dt>Exemplos</dt><dd>pgvector, Qdrant, Weaviate, Milvus, Chroma e Pinecone. O FAISS é uma biblioteca de busca vetorial, não um banco completo.</dd></div>
+    </dl>
+  </div>
+  <figure class="viz">
+    <span class="viz-label">Busca por similaridade</span>
+    <p class="qbox">Pergunta: “Como cancelo minha assinatura?”</p>
+    <ol class="rows">
+      <li class="row hit">
+        <div class="row-top"><code>c-014</code><span>manual.pdf · p.12</span><span class="sent">top-1 → LLM</span></div>
+        <p>Para cancelar, acesse Conta &gt; Plano e clique em Encerrar.</p>
+        <div class="vec">[0.12, −0.48, 0.91, …]</div>
+        <div class="score"><span class="bar"><i style="width:89%"></i></span>0.89</div>
+      </li>
+      <li class="row hit">
+        <div class="row-top"><code>c-015</code><span>termos.pdf · p.3</span><span class="sent">top-2 → LLM</span></div>
+        <p>O cancelamento vale ao fim do ciclo de cobrança.</p>
+        <div class="vec">[0.10, −0.51, 0.87, …]</div>
+        <div class="score"><span class="bar"><i style="width:84%"></i></span>0.84</div>
+      </li>
+      <li class="row">
+        <div class="row-top"><code>c-208</code><span>blog.html</span></div>
+        <p>Veja as novidades da versão 4.2.</p>
+        <div class="vec">[−0.62, 0.33, 0.05, …]</div>
+        <div class="score"><span class="bar"><i style="width:21%"></i></span>0.21</div>
+      </li>
+    </ol>
+    <figcaption>Pontuações ilustrativas de similaridade (1 = muito parecido). Aqui, top-k = 2.</figcaption>
+  </figure>
+</section>
+
+<section class="concept k-rag" id="rag">
+  <div class="ctext">
+    <p class="tag">Conceito 5 de 5</p>
+    <h2>RAG</h2>
+    <p class="lead">RAG (Retrieval-Augmented Generation) busca trechos relevantes nos seus dados e entrega ao LLM junto com a pergunta, para ele responder com base neles.</p>
+    <dl>
+      <div><dt>Como lê o nome</dt><dd><b>Retrieval</b>: buscar os trechos. <b>Augmented</b>: ampliar o prompt com esse contexto. <b>Generation</b>: o LLM gera a resposta.</dd></div>
+      <div><dt>Analogia</dt><dd>Prova com consulta. O aluno não precisa decorar o livro: recebe as páginas certas antes de responder.</dd></div>
+      <div><dt>Por que importa</dt><dd>Dá ao modelo acesso a informação atual e privada sem retreiná-lo, reduz respostas inventadas e permite citar a fonte.</dd></div>
+      <div><dt>Cuidado</dt><dd>RAG reduz alucinações, mas não as elimina. Se a busca traz o trecho errado, a resposta sai errada com ar de certeza. Avalie a <b>recuperação</b> separadamente da <b>geração</b>.</dd></div>
+    </dl>
+  </div>
+  <figure class="viz">
+    <span class="viz-label">O prompt que o LLM recebe</span>
+    <div class="prompt">
+      <div class="k-neu"><b>Instruções</b>Responda apenas com base no contexto. Se não souber, diga que não encontrou.</div>
+      <div class="k-vdb"><b>Contexto (vindo do banco vetorial)</b>[1] Para cancelar, acesse Conta &gt; Plano e clique em Encerrar. (manual.pdf, p.12)<br>[2] O cancelamento vale ao fim do ciclo de cobrança. (termos.pdf, p.3)</div>
+      <div class="k-tok"><b>Pergunta</b>Como cancelo minha assinatura?</div>
+    </div>
+    <div class="answer"><b>Resposta do LLM</b>Acesse Conta &gt; Plano e clique em Encerrar. O cancelamento só vale ao fim do ciclo de cobrança. <em>[manual.pdf p.12 · termos.pdf p.3]</em></div>
+    <figcaption>Exemplo simplificado. Na prática, o contexto traz os top-k chunks recuperados.</figcaption>
+  </figure>
+</section>
+
+</div>
+
+<script>
+(function(){
+  var NS='http://www.w3.org/2000/svg';
+  var reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var steps=[
+    {kind:'neu',phase:'Indexação',concept:'Preparo',title:'Reúna os documentos',text:'Você junta as fontes que o sistema vai consultar: PDFs, páginas, FAQs, manuais. Neste ponto elas ainda estão inteiras, como texto bruto.',nodes:['n-doc'],edges:[]},
+    {kind:'chk',phase:'Indexação',concept:'Chunk',title:'Os documentos são divididos em chunks',text:'Cada documento é cortado em chunks: pedaços de texto pequenos o bastante para caber no contexto e grandes o bastante para fazer sentido. Cada chunk guarda a fonte e a página de onde veio.',nodes:['n-doc','n-chunk'],edges:['e1']},
+    {kind:'tok',phase:'Indexação',concept:'Token',title:'O texto vira tokens',text:'Cada chunk passa pelo tokenizador, que quebra o texto em tokens e troca cada um por um número (ID) do vocabulário do modelo.',nodes:['n-chunk','n-tok1'],edges:['e2']},
+    {kind:'emb',phase:'Indexação',concept:'Embedding',title:'Os tokens viram um vetor',text:'Um modelo de embeddings lê os tokens e devolve um vetor: uma lista de números que representa o significado do chunk.',nodes:['n-tok1','n-emb1'],edges:['e3']},
+    {kind:'vdb',phase:'Indexação',concept:'Banco vetorial',title:'O vetor é guardado no banco',text:'O banco salva o vetor junto com o texto original e os metadados (fonte, página, data) e monta um índice para a busca ser rápida.',nodes:['n-emb1','n-db'],edges:['e4']},
+    {kind:'tok',phase:'Consulta',concept:'Token',title:'Chega uma pergunta',text:'Na hora da consulta, a pessoa pergunta algo. A pergunta passa pelo mesmo tokenizador usado na indexação.',nodes:['n-q','n-tok2'],edges:['e5']},
+    {kind:'emb',phase:'Consulta',concept:'Embedding',title:'A pergunta também vira vetor',text:'O mesmo modelo de embeddings transforma a pergunta em vetor. Assim, pergunta e chunks ficam no mesmo mapa de significados e podem ser comparados.',nodes:['n-tok2','n-emb2'],edges:['e6']},
+    {kind:'vdb',phase:'Consulta',concept:'Banco vetorial',title:'O banco busca por similaridade',text:'O banco compara o vetor da pergunta com os vetores guardados e devolve os top-k chunks mais próximos, junto com o texto original.',nodes:['n-emb2','n-db'],edges:['e7']},
+    {kind:'rag',phase:'Geração',concept:'RAG',title:'O prompt é montado com o contexto',text:'Os chunks recuperados viram contexto. O prompt reúne instruções, esse contexto e a pergunta original, e segue para o LLM.',nodes:['n-db','n-q','n-llm'],edges:['e8','e9']},
+    {kind:'rag',phase:'Geração',concept:'RAG',title:'O LLM responde com base no contexto',text:'O modelo gera a resposta apoiada nos trechos recuperados e pode citar as fontes. Esse ciclo completo é o RAG: buscar, ampliar o prompt e gerar.',nodes:['n-llm'],edges:[]}
+  ];
+
+  var svg=document.getElementById('flow');
+  var packetsG=document.getElementById('packets');
+  var cap=document.getElementById('cap');
+  var stepsBox=document.getElementById('steps');
+  var playBtn=document.getElementById('play');
+  var counter=document.getElementById('counter');
+  var edgeInfo={};
+  var cur=0, playing=!reduced, timer=null, startT=0, active=[];
+
+  svg.querySelectorAll('.edge').forEach(function(g){
+    var p=g.querySelector('path');
+    var len=p.getTotalLength();
+    var end=p.getPointAtLength(len), pr=p.getPointAtLength(Math.max(len-4,0));
+    var ang=Math.atan2(end.y-pr.y,end.x-pr.x)*180/Math.PI;
+    var poly=document.createElementNS(NS,'polygon');
+    poly.setAttribute('points','0,0 -10,-5.5 -10,5.5');
+    poly.setAttribute('transform','translate('+end.x+' '+end.y+') rotate('+ang+')');
+    g.appendChild(poly);
+    var kind=''; g.classList.forEach(function(c){ if(c.indexOf('k-')===0) kind=c; });
+    edgeInfo[g.id]={g:g,p:p,len:len,kind:kind};
+  });
+
+  steps.forEach(function(s,i){
+    var b=document.createElement('button');
+    b.type='button'; b.className='stepbtn k-'+s.kind; b.textContent=String(i+1);
+    b.setAttribute('aria-label','Passo '+(i+1)+': '+s.title);
+    b.addEventListener('click',function(){ playing=false; updatePlay(); setStep(i); schedule(); });
+    stepsBox.appendChild(b);
+  });
+
+  function setStep(i){
+    cur=(i+steps.length)%steps.length;
+    var s=steps[cur];
+    svg.classList.add('has-active');
+    svg.querySelectorAll('.node,.edge').forEach(function(el){ el.classList.remove('on'); });
+    s.nodes.forEach(function(id){ var n=document.getElementById(id); if(n) n.classList.add('on'); });
+    s.edges.forEach(function(id){ edgeInfo[id].g.classList.add('on'); });
+    cap.className='cap k-'+s.kind;
+    document.getElementById('badge').textContent=s.phase+' · '+s.concept;
+    document.getElementById('cap-title').textContent=s.title;
+    document.getElementById('cap-text').textContent=s.text;
+    counter.textContent='Passo '+(cur+1)+' de '+steps.length;
+    Array.prototype.forEach.call(stepsBox.children,function(b,j){
+      if(j===cur) b.setAttribute('aria-current','step'); else b.removeAttribute('aria-current');
+    });
+    packetsG.textContent=''; active=[];
+    if(!reduced){
+      s.edges.forEach(function(id){
+        var info=edgeInfo[id];
+        var c=document.createElementNS(NS,'circle');
+        c.setAttribute('r','5.5'); c.setAttribute('class','packet '+info.kind);
+        packetsG.appendChild(c); active.push({c:c,info:info});
+      });
+    }
+    startT=performance.now();
+  }
+
+  function tick(now){
+    if(active.length){
+      var t=((now-startT)%1700)/1200;
+      var p=Math.min(t,1), e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
+      active.forEach(function(a){
+        var pt=a.info.p.getPointAtLength(a.info.len*e);
+        a.c.setAttribute('cx',pt.x); a.c.setAttribute('cy',pt.y);
+        a.c.setAttribute('opacity',t>1?0:1);
+      });
+    }
+    requestAnimationFrame(tick);
+  }
+
+  function schedule(){
+    clearTimeout(timer);
+    if(playing){ timer=setTimeout(function(){ setStep(cur+1); schedule(); },5000); }
+  }
+  function updatePlay(){ playBtn.textContent=playing?'Pausar':'Reproduzir'; }
+
+  document.getElementById('prev').addEventListener('click',function(){ setStep(cur-1); schedule(); });
+  document.getElementById('next').addEventListener('click',function(){ setStep(cur+1); schedule(); });
+  playBtn.addEventListener('click',function(){ playing=!playing; updatePlay(); schedule(); });
+
+  updatePlay(); setStep(0); schedule();
+  if(!reduced) requestAnimationFrame(tick);
+})();
+</script>
+
+</body></html>

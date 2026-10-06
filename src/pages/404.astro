@@ -1,0 +1,10 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+
+<BaseLayout title="Página não encontrada" description="A página que você procura não existe.">
+  <h1>Página não encontrada</h1>
+  <p>O endereço pode ter mudado ou nunca ter existido.</p>
+  <p><a href={`${base}/`}>← Voltar para o início</a></p>
+</BaseLayout>
