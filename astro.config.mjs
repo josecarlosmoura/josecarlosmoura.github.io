@@ -11,7 +11,7 @@ import sitemap from '@astrojs/sitemap';
 //          site: 'https://SEU-USUARIO.github.io'   e   base: '/blog'
 //
 // Com domínio próprio (ex.: seunome.dev): site: 'https://seunome.dev' e base: '/'
-const SITE = 'https://SEU-USUARIO.github.io';
+const SITE = 'https://josecarlosmoura.github.io';
 const BASE = '/';
 
 export default defineConfig({
